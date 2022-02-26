@@ -1,0 +1,17 @@
+{
+    "site": {
+        "id": 69,
+        "url": "http:\/\/economy.council.gov.ru\/",
+        "need_parse_url": 1,
+        "page": "http:\/\/economy.council.gov.ru\/",
+        "page_time": "0.00000",
+        "atack": 1
+    },
+    "proxy": [
+        {
+            "id": 5,
+            "ip": "45.151.100.134:8000\r",
+            "auth": "k5wde6:Do5sMv"
+        }
+    ]
+}
