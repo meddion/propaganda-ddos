@@ -1,5 +1,14 @@
 # anti-rusnya-ddos
 
+## TO BUILD:
+```bash
+git clone https://github.com/meddion/anti-rusnya-ddos.git
+bash cd anti-rusnya-ddos
+make build # or go build -o antirus -v .
+./antirus help
+```
+
+
 TODO:
 
 Graceful shutdown with Cntrl+C
