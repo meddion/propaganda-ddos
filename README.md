@@ -41,16 +41,12 @@ docker run -it --rm antirus help
 
 ## TODO:
 
-- Graceful shutdown with Cntrl+C
-
-- Cli front with Cobra
-
 - Adjust connection constants
 
-- Create docker image
+- Push docker image to docker hub
 
-- Make a general DDoS tool (any port, UDP)
+- Make a general DDoS tool (UDP), not only HTTP flood
 
-- Add own sources & proxies
+- Add own sources & proxies -- create gateway and target api's
 
 - Add script to launch in GCP
