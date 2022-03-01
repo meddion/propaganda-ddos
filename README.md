@@ -1,15 +1,19 @@
 # anti-rusnya-ddos
+# Coordination
+- https://t.me/incourse911
+- https://t.me/itarmyofukraine2022 (english posts are included)
 
-# API IMPLEMENTATION: 
+
+### API IMPLEMENTATION: 
 - https://gitlab.com/cto.endel/atack_api.git
 
 ![image](https://user-images.githubusercontent.com/25509048/156193402-1fce09b7-fbf5-46e2-9b6b-7656a8f8827d.png)
 
-# `ddatack` REFERENCE IMPLEMENTATIONS:
+### `ddatack` REFERENCE IMPLEMENTATIONS:
 - https://gitlab.com/ELWAHAB/dd-atack (php)
 - https://github.com/AlexTrushkovsky/NoWarDDoS (python)
 
-## HOW ```antirus ddatack``` WORKS
+### HOW ```antirus ddatack``` WORKS
 1) Звертаєтеся до `GATEWAY` (наприклад, http://rockstarbloggers.ru/hosts.json), щоб отримати список `ДЖЕРЕЛ`.
 2) Зв'язуєтеся з `ДЖЕРЕЛОМ`, щоб отримати цілі та проксі для атаки (знайдете приклади відповідей від `ДЖЕРЕЛА` в каталозі `example`).
 3) Починаєте надсилати запити на адресу отриману від `ДЖЕРЕЛА`, щоб показати свою любов :blue_heart: :yellow_heart:
