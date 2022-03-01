@@ -3,6 +3,13 @@
 Як запустити на клауді (GCP):
 https://docs.google.com/document/d/1ZREB8bejySMtdSWfHS8rDNiywsytLZhV05WyUsVhNMI/edit
 
+### HOW ```bash antirus ddatack``` WORKS
+1) You contact the `GATEWAY` (e.g. http://rockstarbloggers.ru/hosts.json), to get a list of `SOURCE`s .
+2) Contact a `SOURCE` to get the target and proxy for attack (examples of responses are in `example/` directory).
+3) Start sending requsts to the target endpoint to show your love :blue_heart: :yellow_heart: 
+
+_TODO: Checks & verifications should be in place at every step_ 
+
 ## ЗБІЛДИТИ ПРОГРАМУ (TO BUILD)
 ```bash
 git clone https://github.com/meddion/anti-rusnya-ddos.git
