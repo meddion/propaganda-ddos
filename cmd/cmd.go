@@ -1,8 +1,50 @@
 package cmd
 
 import (
+	"os"
+	"os/signal"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+var once sync.Once
+
+func CreateDoneChan() (<-chan struct{}, func()) {
+	done := make(chan struct{}, 1)
+	return done, func() {
+		once.Do(func() {
+			close(done)
+		})
+	}
+}
+func startOsSignalHandler(terminate func()) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		terminate()
+		log.Infoln("Готуюся до закриття.")
+	}()
+}
+
+func startBotHandler(done <-chan struct{}, termBots func(), epoch *int64, curEpoch int64) {
+	go func() {
+		tk := time.NewTicker(time.Minute)
+		select {
+		case <-tk.C:
+			if atomic.LoadInt64(epoch) != curEpoch {
+				return
+			}
+		case <-done:
+			termBots()
+		}
+	}()
+}
 
 var (
 	botsNum     int

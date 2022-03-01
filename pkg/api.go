@@ -3,7 +3,12 @@ package pkg
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/rand"
+	"net"
+	"net/url"
+	"strings"
 )
 
 type (
@@ -21,7 +26,7 @@ type (
 	}
 
 	TargetData struct {
-		Site
+		Site    Site    `json:"site"`
 		Proxies []Proxy `json:"proxy"`
 	}
 )
@@ -75,4 +80,43 @@ func GetDataFromSrc(ctx context.Context, src string) (*TargetData, error) {
 	}
 
 	return hostResp, err
+}
+
+func ValidateTargetData(data *TargetData) error {
+	if data.Site.URL == "" {
+		if data.Site.Page != "" {
+			data.Site.URL = data.Site.Page
+		} else {
+			return errors.New("empty address; no target")
+		}
+	}
+
+	data.Site.URL = CleanupURL(data.Site.URL)
+
+	if _, err := ValidateURL(data.Site.URL); err != nil {
+		return fmt.Errorf("on parsing target url: %w", err)
+	}
+
+	return nil
+}
+
+func CleanupURL(targetURL string) string {
+	targetURL = strings.Trim(targetURL, "\r")
+	targetURL = strings.Trim(targetURL, "\n")
+	return strings.TrimFunc(targetURL, func(r rune) bool {
+		return r == ' ' || r == '\n' || r == '\r'
+	})
+}
+
+func ValidateURL(targetURL string) (*url.URL, error) {
+	url, err := url.ParseRequestURI(targetURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if net.ParseIP(url.Host) == nil && !strings.Contains(url.Host, ".") {
+		return nil, errors.New("invalid host")
+	}
+
+	return url, nil
 }

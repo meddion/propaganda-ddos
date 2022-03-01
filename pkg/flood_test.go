@@ -35,3 +35,12 @@ func TestBot(t *testing.T) {
 
 	wg.Wait()
 }
+
+// func TestValidateURL(t *testing.T) {
+// 	assert.NoError(t, ValidateURL("http://google.com"))
+// 	assert.NoError(t, ValidateURL("http://w.com/cn"))
+// 	assert.NoError(t, ValidateURL("http://192.158.0.1:90"))
+// 	assert.Error(t, ValidateURL("http://w"))
+// 	assert.Error(t, ValidateURL("fsw"))
+// 	assert.Error(t, ValidateURL("http://192.158.1/1"))
+// }

@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"runtime"
 	"strings"
 
@@ -42,7 +41,9 @@ func NewBot(ctx context.Context, id int, proxy *Proxy, withTLSproxy bool) (*Bot,
 				proxyURL = "http://" + proxy.IP
 			}
 		}
-		url, err := url.Parse(proxyURL)
+
+		proxyURL = CleanupURL(proxyURL)
+		url, err := ValidateURL(proxyURL)
 		if err != nil {
 			return nil, err
 		}

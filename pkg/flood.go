@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -34,11 +33,6 @@ func init() {
 }
 
 func StartBots(ctx context.Context, wg *sync.WaitGroup, data *TargetData, numOfBots, maxErrCount int, counter chan<- bool) error {
-	_, err := url.ParseRequestURI(data.Site.URL)
-	if err != nil {
-		return fmt.Errorf("on parsing target url: %w", err)
-	}
-
 	ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
