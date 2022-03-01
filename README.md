@@ -40,7 +40,7 @@ docker run -it --rm antirus help
 ```
 
 ## TODO:
-
+- TEST, TEST, AND TEST!
 - Adjust connection constants
 
 - Push docker image to docker hub
