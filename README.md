@@ -3,7 +3,7 @@
 ## ЗБІЛДИТИ ПРОГРАМУ (TO BUILD)
 ```bash
 git clone https://github.com/meddion/anti-rusnya-ddos.git
-bash cd anti-rusnya-ddos
+cd anti-rusnya-ddos
 
 # Docker
 docker build -t antirus . 
