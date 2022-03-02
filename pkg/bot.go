@@ -10,9 +10,17 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
+
+type BotMsg struct {
+	ID       int
+	Status   bool
+	ErrCount int
+	Done     func()
+}
 
 type Bot struct {
 	c         *http.Client
@@ -90,7 +98,7 @@ func toDevNull(readCloser io.ReadCloser) error {
 	return nil
 }
 
-func (b *Bot) Start(ctx context.Context, target string, maxErrCount int, counter chan<- bool) {
+func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
 	log := log.WithField("bot", b.id)
 
 	select {
@@ -99,9 +107,19 @@ func (b *Bot) Start(ctx context.Context, target string, maxErrCount int, counter
 	default:
 	}
 
+	var once sync.Once
+	botDone := make(chan struct{}, 1)
+	termBot := func() {
+		once.Do(func() {
+			close(botDone)
+		})
+	}
+
 	errCount := 0
-	for errCount < maxErrCount {
+	for {
 		select {
+		case <-botDone:
+			return
 		case <-ctx.Done():
 			return
 		default:
@@ -133,9 +151,11 @@ func (b *Bot) Start(ctx context.Context, target string, maxErrCount int, counter
 			}
 
 			select {
+			case <-botDone:
+				return
 			case <-ctx.Done():
 				return
-			case counter <- status:
+			case msgs <- BotMsg{ID: b.id, Status: status, Done: termBot, ErrCount: errCount}:
 			}
 		}
 		runtime.Gosched()

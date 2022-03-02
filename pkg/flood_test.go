@@ -10,27 +10,33 @@ import (
 )
 
 func TestBot(t *testing.T) {
-	ctx, termBots := context.WithCancel(context.Background())
-	// done := make(chan struct{}, 1)
-	counter := make(chan bool, 1)
+	botsNum := 2
+	maxErrCount := 10
+	onlyProxy := false
+	targets := []Target{{URL: "https://gggdfgfgdfg.sw"}, {URL: "https://asdfasda.sad"}}
+	proxies := []Proxy{}
+
+	rootCtx, term := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
-	wg.Add(10)
-	for i := 0; i < 10; i++ {
-		c, err := NewBot(ctx, 1, nil, false)
-		if err != nil {
-			t.Fatal(err)
+	for _, target := range targets {
+		if err := ValidateTarget(&target); err != nil {
+			log.Errorf("Під час валідації даних про атаку (перевірте джерело): %v", err)
+			continue
 		}
 
-		go func() {
-			defer wg.Done()
-			c.Start(ctx, "google.com", 10, counter)
-		}()
+		log.Infof("Дані із джерела підвантажено. Ціль: %s, К-ість проксі: %d\n",
+			target.URL, len(proxies))
+
+		botSched := NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
+		if err := botSched.StartBots(rootCtx, &wg); err != nil {
+			log.Errorf("Не вдалося запустити ботів: %v\n", err)
+			continue
+		}
 	}
 
-	time.AfterFunc(time.Second, func() {
-		log.Println("canceling the bot")
-		termBots()
+	time.AfterFunc(time.Second*2, func() {
+		term()
 	})
 
 	wg.Wait()

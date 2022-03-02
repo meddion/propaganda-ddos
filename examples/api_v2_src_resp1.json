@@ -1,0 +1,16 @@
+{
+    "site": [
+        {
+            "url": "https:\/\/www.pochtabank.ru"
+        },
+        {
+            "id": 170,
+            "url": "https:\/\/www.priorbank.by\/",
+            "need_parse_url": 1,
+            "page": "https:\/\/www.priorbank.by\/",
+            "page_time": 0,
+            "atack": 1
+        }
+    ],
+    "proxy": []
+}

