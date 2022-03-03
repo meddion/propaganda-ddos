@@ -75,6 +75,54 @@ func GetSrcFromAPIGateway(rootCtx context.Context, gateway string) (string, erro
 	return sources[rand.Intn(len(sources)-1)], nil
 }
 
+func GetProxyFromAPI(rootCtx context.Context, proxySrc string) ([]Proxy, error) {
+	srcCtx, cancel := context.WithTimeout(rootCtx, SRC_TIMEOUT)
+	defer cancel()
+
+	req, err := newGetReq(srcCtx, proxySrc)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := DefClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer toDevNull(resp.Body)
+
+	dec := json.NewDecoder(resp.Body)
+	var proxies []Proxy
+	if err := dec.Decode(&proxies); err != nil {
+		return nil, err
+	}
+
+	return proxies, nil
+}
+
+func GetTargetsFromAPI(rootCtx context.Context, targetSrc string) ([]Target, error) {
+	srcCtx, cancel := context.WithTimeout(rootCtx, SRC_TIMEOUT)
+	defer cancel()
+
+	req, err := newGetReq(srcCtx, targetSrc)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := DefClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer toDevNull(resp.Body)
+
+	dec := json.NewDecoder(resp.Body)
+	var targets []Target
+	if err := dec.Decode(&targets); err != nil {
+		return nil, err
+	}
+
+	return targets, nil
+}
+
 func GetDataFromAPISrc(rootCtx context.Context, src string, apiVer int) ([]Target, []Proxy, error) {
 	srcCtx, cancel := context.WithTimeout(rootCtx, SRC_TIMEOUT)
 	defer cancel()
@@ -139,6 +187,28 @@ func ValidateTarget(target *Target) error {
 	}
 
 	return nil
+}
+
+const TEST_SITE = "https://google.com"
+
+func ValidateProxy(rootCtx context.Context, proxy Proxy) error {
+	bot, err := NewBot(0, &proxy, false)
+	if err != nil {
+		return err
+	}
+
+	proxyCtx, cancel := context.WithTimeout(rootCtx, time.Second*2)
+	defer cancel()
+
+	msgs := make(chan BotMsg)
+	go bot.Start(proxyCtx, TEST_SITE, msgs)
+
+	select {
+	case <-proxyCtx.Done():
+		return fmt.Errorf("ніякої відповіді від проксі: %s", proxy.IP)
+	case msg := <-msgs:
+		return msg.Err
+	}
 }
 
 func CleanupURL(targetURL string) string {

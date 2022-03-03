@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,21 +16,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type BotMsg struct {
-	ID       int
-	Status   bool
-	ErrCount int
-	Done     func()
-}
+type (
+	BotMsg struct {
+		ID       int
+		Err      error
+		ErrCount int
+		Done     func()
+	}
 
-type Bot struct {
-	c         *http.Client
-	req       *http.Request
-	id        int
-	withProxy bool
-}
+	Bot struct {
+		c         *http.Client
+		req       *http.Request
+		id        int
+		withProxy bool
+	}
+)
 
-func NewBot(ctx context.Context, id int, proxy *Proxy, withTLSproxy bool) (*Bot, error) {
+func NewBot(id int, proxy *Proxy, withTLSproxy bool) (*Bot, error) {
 	// TODO: adjust constants
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -37,6 +40,7 @@ func NewBot(ctx context.Context, id int, proxy *Proxy, withTLSproxy bool) (*Bot,
 	tr.MaxConnsPerHost = 0 // 0 - no limit
 	tr.IdleConnTimeout = 0
 	tr.ReadBufferSize = 10
+	tr.DisableCompression = true
 
 	withProxy := false
 	if proxy != nil {
@@ -123,29 +127,22 @@ func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
 		case <-ctx.Done():
 			return
 		default:
-			req, err := newGetReq(ctx, target)
-			if err != nil {
-				log.Errorf("Під час створення запиту: %v", err)
+			var err error
+
+			if req, err := newGetReq(ctx, target); err != nil {
 				errCount++
-				continue
-			}
-
-			resp, err := b.c.Do(req)
-
-			status := true
-			if err != nil {
-				status = false
+				err = fmt.Errorf("Під час створення запиту: %v", err)
+			} else if resp, err := b.c.Do(req); err != nil {
 				errCount++
 				if resp != nil {
-					log.Errorf("%v (%d %s)", err, resp.StatusCode, http.StatusText(resp.StatusCode))
+					err = fmt.Errorf("%v (%d %s)", err, resp.StatusCode, http.StatusText(resp.StatusCode))
 				} else if !errors.Is(err, context.Canceled) {
-					log.Errorln(err)
+					err = fmt.Errorf("%v", err)
 				}
 			} else {
 				if resp.StatusCode != http.StatusOK {
-					status = false
 					errCount++
-					log.Errorf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+					err = fmt.Errorf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 				}
 				toDevNull(resp.Body)
 			}
@@ -155,8 +152,9 @@ func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
 				return
 			case <-ctx.Done():
 				return
-			case msgs <- BotMsg{ID: b.id, Status: status, Done: termBot, ErrCount: errCount}:
+			case msgs <- BotMsg{ID: b.id, Err: err, Done: termBot, ErrCount: errCount}:
 			}
+
 		}
 		runtime.Gosched()
 	}

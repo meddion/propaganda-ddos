@@ -106,7 +106,7 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 				id := rand.Int() // TODO: possible collisions
 				log := log.WithField("bot", id)
 
-				c, err := NewBot(botsCtx, id, proxy, false)
+				c, err := NewBot(id, proxy, false)
 				if err != nil {
 					log.Infof("Під час створення бота: %v\n", err)
 					return
@@ -142,9 +142,14 @@ func (b *BotScheduler) botListener(ctx context.Context, termBots func(), msgs <-
 			return
 		case msg := <-msgs:
 			totalRequstSent++
-			if msg.Status {
+			if msg.Err != nil {
+				log.WithField("id", msg.ID).Errorln(msg.Err)
+			} else {
+				// log.WithField("id", msg.ID).Infof("%s УСПІХ [200]", b.target.URL)
 				successRequestSent++
-			} else if msg.ErrCount > b.maxErrCount {
+			}
+
+			if msg.ErrCount > b.maxErrCount {
 				msg.Done()
 				log.WithField("id", msg.ID).Warnf(
 					"Бот закінчив роботу; к-сть помилка перевищила ліміт %d",
