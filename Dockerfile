@@ -1,11 +1,11 @@
 FROM golang:1.17-alpine
  
-RUN mkdir /anti-rusnya-ddos
+RUN mkdir /project
  
-COPY . /anti-rusnya-ddos
+COPY . /project
  
-WORKDIR /anti-rusnya-ddos
+WORKDIR /project
  
-RUN go build -o antirus . 
+RUN go build -o main . 
  
-ENTRYPOINT ["/anti-rusnya-ddos/antirus"]
+ENTRYPOINT ["/project/main"]

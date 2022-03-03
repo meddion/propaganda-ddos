@@ -62,7 +62,7 @@ func (b *BotScheduler) proxy() *Proxy {
 	return &b.proxies[rand.Intn(len(b.proxies)-1)]
 }
 
-func (b *BotScheduler) StartBots(botsCtx context.Context, wg *sync.WaitGroup) error {
+func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error {
 	withProxy := true
 	if !b.onlyProxy {
 		ctxTimeout, cancel := context.WithTimeout(botsCtx, time.Second*5)
@@ -119,14 +119,16 @@ func (b *BotScheduler) StartBots(botsCtx context.Context, wg *sync.WaitGroup) er
 		}
 	}
 
-	go b.botListener(botsCtx, wg, termBots, msgs)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		b.botListener(botsCtx, termBots, msgs)
+	}()
 
 	return nil
 }
 
-func (b *BotScheduler) botListener(ctx context.Context, wg *sync.WaitGroup, termBots func(), msgs <-chan BotMsg) {
-	wg.Add(1)
-	defer wg.Done()
+func (b *BotScheduler) botListener(ctx context.Context, termBots func(), msgs <-chan BotMsg) {
 	totalRequstSent, successRequestSent := 0, 0
 	for {
 		select {

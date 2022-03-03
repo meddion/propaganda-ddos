@@ -1,8 +1,13 @@
 build:
-	go build -o antirus -v .
+	go build -o antiprop -v .
 
 docker_build:
-	docker build -t antirus .
+	docker build -t antiprop .
+
+docker_push:
+	docker build -t antiprop .
+	docker tag antiprop:latest lovefromukraine/antiprop:latest
+	docker push lovefromukraine/antiprop:latest
 
 curl_proxy_example:
-	curl -v https:\/\/www.nalog.gov.ru\/ -x 46.3.150.197:8000 -U 0ShxVd:409mML
+	curl -v https://gebank.ru/ -x 5.157.131.149:8409 -U spiznxfg:r6daod3mfgkz
