@@ -95,8 +95,6 @@ docker run -it --rm antirus help
 - TEST, TEST, AND TEST!
 - Adjust connection constants
 
-- Push docker image to docker hub
-
 - Make a general DDoS tool (UDP), not only HTTP flood
 
 - Add own sources & proxies -- create gateway and target api's
