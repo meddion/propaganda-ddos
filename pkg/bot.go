@@ -3,17 +3,11 @@ package pkg
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"runtime"
-	"strings"
-	"sync"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -21,61 +15,61 @@ type (
 		ID       int
 		Err      error
 		ErrCount int
-		Done     func()
+		Continue chan<- bool
 	}
 
 	Bot struct {
-		c         *http.Client
-		req       *http.Request
-		id        int
-		withProxy bool
+		c  *http.Client
+		id int
 	}
 )
 
-func NewBot(id int, proxy *Proxy, withTLSproxy bool) (*Bot, error) {
+func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 	// TODO: adjust constants
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	tr.MaxIdleConns = 0    // 0 - no limit
+	tr.MaxIdleConns = 10   // 0 - no limit
 	tr.MaxConnsPerHost = 0 // 0 - no limit
-	tr.IdleConnTimeout = 0
+	tr.IdleConnTimeout = DIAL_TIMEOUT
 	tr.ReadBufferSize = 10
 	tr.DisableCompression = true
+	tr.DisableKeepAlives = true
 
-	withProxy := false
-	if proxy != nil {
-		proxyURL := proxy.IP
-		if !strings.HasPrefix(proxy.IP, "http") {
-			switch withTLSproxy {
-			case true:
-				proxyURL = "https://" + proxy.IP
-			default:
-				proxyURL = "http://" + proxy.IP
-			}
-		}
+	tr.Proxy = nil
 
-		proxyURL = CleanupURL(proxyURL)
-		url, err := ValidateURL(proxyURL)
-		if err != nil {
-			return nil, err
-		}
-		tr.Proxy = http.ProxyURL(url)
-		tr.ProxyConnectHeader = http.Header{}
-		basicAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(proxy.Auth))
-		tr.ProxyConnectHeader.Add("Proxy-Authorization", basicAuth)
-		withProxy = true
-	}
+	// tr.Proxy = func(req *http.Request) (*url.URL, error) {
+	// 	proxy := getProxy()
+	// 	// proxy := (*Proxy)(nil)
+	// 	if proxy == nil {
+	// 		log.WithField("id", id).Println("Надсилаю без проксі")
+	// 		return nil, nil
+	// 	}
+
+	// 	url, err := url.Parse(proxy.IP)
+
+	// 	if err != nil {
+	// 		url, err = url.Parse(req.URL.Scheme + proxy.IP)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	}
+	// 	a := strings.Split(proxy.Auth, ":")
+	// 	if len(a) > 2 {
+	// 		req.SetBasicAuth(a[0], a[1])
+	// 	}
+
+	// 	return url, nil
+	// }
 
 	b := &Bot{
-		id:        id,
-		withProxy: withProxy,
-		c:         &http.Client{Transport: tr},
+		id: id,
+		c:  &http.Client{Transport: tr},
 	}
 
 	return b, nil
 }
 
-func newGetReq(ctx context.Context, target string) (*http.Request, error) {
+func newReq(ctx context.Context, method string, target string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return nil, err
@@ -86,7 +80,6 @@ func newGetReq(ctx context.Context, target string) (*http.Request, error) {
 	req.Header.Add("Accept", "application/json, text/plain, */*")
 	req.Header.Add("Accept-Language", "ru")
 	req.Header.Add("x-forward-proto", "https")
-	req.Header.Add("Accept-Encoding", "gzip, deflate, br")
 
 	// dumpedBody, _ := httputil.DumpRequest(req, true)
 
@@ -103,56 +96,55 @@ func toDevNull(readCloser io.ReadCloser) error {
 }
 
 func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
-	log := log.WithField("bot", b.id)
-
 	select {
 	case <-ctx.Done():
-		log.Println("is canceld")
+		return
 	default:
 	}
 
-	var once sync.Once
-	botDone := make(chan struct{}, 1)
-	termBot := func() {
-		once.Do(func() {
-			close(botDone)
-		})
-	}
-
+	cont := make(chan bool, 1)
 	errCount := 0
 	for {
 		select {
-		case <-botDone:
-			return
 		case <-ctx.Done():
 			return
 		default:
-			var err error
-
-			if req, err := newGetReq(ctx, target); err != nil {
+			req, err := newReq(ctx, "GET", target)
+			switch {
+			case err != nil:
 				errCount++
 				err = fmt.Errorf("Під час створення запиту: %v", err)
-			} else if resp, err := b.c.Do(req); err != nil {
-				errCount++
-				if resp != nil {
-					err = fmt.Errorf("%v (%d %s)", err, resp.StatusCode, http.StatusText(resp.StatusCode))
-				} else if !errors.Is(err, context.Canceled) {
-					err = fmt.Errorf("%v", err)
-				}
-			} else {
-				if resp.StatusCode != http.StatusOK {
+			default:
+				var resp *http.Response
+				switch resp, err = b.c.Do(req); {
+				case err != nil:
 					errCount++
-					err = fmt.Errorf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+					if resp != nil {
+						err = fmt.Errorf("%v (%d %s)", err, resp.StatusCode, http.StatusText(resp.StatusCode))
+					}
+					// else if !errors.Is(err, context.Canceled) {
+					// }
+				default:
+					if resp.StatusCode != http.StatusOK {
+						errCount++
+						err = fmt.Errorf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+					}
+					toDevNull(resp.Body)
 				}
-				toDevNull(resp.Body)
 			}
 
 			select {
-			case <-botDone:
-				return
 			case <-ctx.Done():
 				return
-			case msgs <- BotMsg{ID: b.id, Err: err, Done: termBot, ErrCount: errCount}:
+			case msgs <- BotMsg{ID: b.id, Err: err, Continue: cont, ErrCount: errCount}:
+				select {
+				case <-ctx.Done():
+					return
+				case v := <-cont:
+					if !v {
+						return
+					}
+				}
 			}
 
 		}

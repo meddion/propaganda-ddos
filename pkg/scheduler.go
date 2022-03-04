@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -11,26 +10,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
-
-var DefClient *http.Client
-
-func init() {
-	// Setup
-	rand.Seed(time.Now().UnixNano())
-	// Default http client
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	tr.IdleConnTimeout = time.Second * 5
-	tr.ResponseHeaderTimeout = time.Second * 5
-	tr.MaxConnsPerHost = 0 // no limit
-	tr.ReadBufferSize = 100
-	DefClient = &http.Client{Transport: tr}
-	// Logger
-	log.SetFormatter(&log.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		FullTimestamp:   true,
-	})
-}
 
 type BotScheduler struct {
 	target      Target
@@ -54,21 +33,21 @@ func NewBotScheduler(target Target, proxies []Proxy, botsNum, maxErrCount int, o
 	}
 }
 
-func (b *BotScheduler) proxy() *Proxy {
-	if len(b.proxies) == 0 {
+func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error {
+	withProxy := true
+	getProxy := func() *Proxy {
+		if withProxy && len(b.proxies) > 0 {
+			return &b.proxies[rand.Intn(len(b.proxies)-1)]
+		}
+
 		return nil
 	}
 
-	return &b.proxies[rand.Intn(len(b.proxies)-1)]
-}
-
-func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error {
-	withProxy := true
 	if !b.onlyProxy {
 		ctxTimeout, cancel := context.WithTimeout(botsCtx, time.Second*5)
 		defer cancel()
 
-		req, err := newGetReq(ctxTimeout, b.target.URL)
+		req, err := newReq(ctxTimeout, "GET", b.target.URL)
 		if err != nil {
 			return fmt.Errorf("on creaing a request: %w", err)
 		}
@@ -98,15 +77,10 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 			return nil
 		default:
 			go func() {
-				var proxy *Proxy
-				if withProxy {
-					proxy = b.proxy()
-				}
-
 				id := rand.Int() // TODO: possible collisions
 				log := log.WithField("bot", id)
 
-				c, err := NewBot(id, proxy, false)
+				c, err := NewBot(id, getProxy)
 				if err != nil {
 					log.Infof("Під час створення бота: %v\n", err)
 					return
@@ -145,19 +119,22 @@ func (b *BotScheduler) botListener(ctx context.Context, termBots func(), msgs <-
 			if msg.Err != nil {
 				log.WithField("id", msg.ID).Errorln(msg.Err)
 			} else {
-				// log.WithField("id", msg.ID).Infof("%s УСПІХ [200]", b.target.URL)
+				log.WithField("id", msg.ID).Infof("[200] %s", b.target.URL)
 				successRequestSent++
 			}
 
 			if msg.ErrCount > b.maxErrCount {
-				msg.Done()
+				msg.Continue <- false
+
 				log.WithField("id", msg.ID).Warnf(
 					"Бот закінчив роботу; к-сть помилка перевищила ліміт %d",
 					b.maxErrCount,
 				)
 			}
 
-			if totalRequstSent%100 == 0 {
+			msg.Continue <- true
+
+			if totalRequstSent%500 == 0 {
 				log.Infof("Успішних запитів: %d/%d\n", successRequestSent, totalRequstSent)
 			}
 		}

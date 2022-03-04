@@ -1,4 +1,4 @@
-module github.com/meddion/anti-rusnya-ddos
+module github.com/meddion/propaganda-ddos
 
 go 1.17
 
