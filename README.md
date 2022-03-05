@@ -17,6 +17,7 @@ docker logs antiprop -f
 # Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
 curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69
 ```
+![image](https://user-images.githubusercontent.com/25509048/156889923-0a3bd42b-5ee0-466c-8e48-b8295cead812.png)
 
 ### Використання / Usage
 ```bash
