@@ -12,7 +12,7 @@ docker logs antiprop -f
 ```
 
 
-### Запуск в GCP vms / Run in GCP vms
+### Запуск в GCP VMs / Run in GCP VMs
 ```bash
 # Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
 curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69
