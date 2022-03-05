@@ -31,6 +31,6 @@ for i in {1..12}; do
     sudo usermod -aG docker \$USER
     sudo service docker restart
 
-    docker run --restart=always --name=antiprop -d --rm lovefromukraine/antiprop --refresh=30 \
+    docker run --restart=always -d --name=antiprop lovefromukraine/antiprop --refresh=30 \
         --dnsres=true --onlyproxy=false --checkproxy=true --bots ${botsnum} --sites ${sites} --proxy ${proxy}"; 
 done
