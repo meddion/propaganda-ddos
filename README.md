@@ -9,6 +9,8 @@
 - Розумний вибір цілей: якщо ціль лежить або не відповідає -- перестаємо колупати
 - Для запуску потрібен лише Docker
 
+### [Проксі та цілі для атаки за замовчуванням (оновлює автор)](https://github.com/meddion/propaganda-ddos/tree/sources)
+
 ```bash
 docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=69 \
 --dnsres=true --errcount=69 --onlyproxy=false --bots 69 --checkproxy=true \
