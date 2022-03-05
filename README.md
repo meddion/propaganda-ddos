@@ -15,8 +15,8 @@
 ```bash
 docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=20 \
 --dnsres=true --errcount=9 --onlyproxy=false --bots 10 --checkproxy=true \
-https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
-https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
+--sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
+--proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 ```
 Щоб побачити логи
 ```bash
