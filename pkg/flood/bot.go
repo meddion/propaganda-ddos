@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -31,11 +32,12 @@ func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 	tr.MaxIdleConns = 10   // 0 - no limit
 	tr.MaxConnsPerHost = 0 // 0 - no limit
 	tr.IdleConnTimeout = DIAL_TIMEOUT
-	tr.ReadBufferSize = 1_000_000
 	tr.DisableCompression = true
 	tr.DisableKeepAlives = true
 
-	tr.Proxy = nil
+	tr.Dial = (&net.Dialer{
+		Timeout: DIAL_TIMEOUT,
+	}).Dial
 
 	tr.Proxy = func(req *http.Request) (*url.URL, error) {
 		proxy := getProxy()
@@ -62,7 +64,7 @@ func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 
 	b := &Bot{
 		id: id,
-		c:  &http.Client{Transport: tr},
+		c:  &http.Client{Transport: tr, Timeout: DIAL_TIMEOUT},
 	}
 
 	return b, nil

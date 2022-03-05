@@ -146,6 +146,7 @@ func (b *BotScheduler) botResponseHandler(ctx context.Context, termBots func(), 
 				logActiveBots()
 
 				if atomic.LoadInt64(&b.activeBots) == 0 {
+					log.Infof("Припиняю надсилати запити до %s", b.target.URL)
 					return
 				}
 			}

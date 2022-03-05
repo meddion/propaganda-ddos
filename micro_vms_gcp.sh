@@ -1,6 +1,6 @@
 #!/bin/sh
 
-botsnum=30
+botsnum=10
 if [[ $1 -ge 1 ]]; then
     botsnum=$1
 else 
@@ -31,6 +31,6 @@ for i in {1..12}; do
     sudo usermod -aG docker \$USER
     sudo service docker restart
 
-    docker run --restart=always -d --name=antiprop lovefromukraine/antiprop --refresh=30 --errcount=200  \
+    docker run --restart=always -d --name=antiprop lovefromukraine/antiprop --refresh=20 --errcount=10  \
         --dnsres=true --onlyproxy=false --checkproxy=true --bots ${botsnum} --sites ${sites} --proxy ${proxy}"; 
 done

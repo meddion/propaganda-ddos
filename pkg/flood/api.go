@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DIAL_TIMEOUT    = time.Second * 10
+	DIAL_TIMEOUT    = time.Second * 5
 	TEST_PROXY_SITE = "https://google.com" // Used to check if a proxy server is responding
 	CHECKSUM_SIZE   = 256
 )
@@ -64,7 +64,6 @@ func init() {
 	// tr.IdleConnTimeout = time.Second * 5
 	tr.ResponseHeaderTimeout = time.Second * 5
 	tr.MaxConnsPerHost = 0 // no limit
-	tr.ReadBufferSize = 100
 	tr.DisableKeepAlives = true
 	tr.Dial = (&net.Dialer{
 		Timeout: DIAL_TIMEOUT,
