@@ -39,7 +39,7 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 	withProxy := true
 	getProxy := func() *Proxy {
 		if withProxy && len(b.proxies) > 0 {
-			return &b.proxies[rand.Intn(len(b.proxies)-1)]
+			return &b.proxies[rand.Intn(len(b.proxies))]
 		}
 
 		return nil

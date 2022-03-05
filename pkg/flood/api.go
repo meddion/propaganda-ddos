@@ -124,7 +124,11 @@ func GetSrcFromGateway(rootCtx context.Context, gateway string) (string, error) 
 		return "", err
 	}
 
-	return sources[rand.Intn(len(sources)-1)], nil
+	if len(sources) > 0 {
+		return sources[rand.Intn(len(sources))], nil
+	}
+
+	return "", nil
 }
 
 func GetProxy(rootCtx context.Context, proxySrcAddr string) ([]Proxy, error) {

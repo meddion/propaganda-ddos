@@ -3183,5 +3183,5 @@ var userAgents = []string{
 }
 
 func GetUserAgent() string {
-	return userAgents[rand.Intn(len(userAgents)-1)]
+	return userAgents[rand.Intn(len(userAgents))]
 }
