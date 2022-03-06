@@ -5,10 +5,10 @@ docker_build:
 	docker build -t antiprop .
 
 docker_run:
-	docker run --rm -it --name=antiprop lovefromukraine/antiprop --refresh=69 \
-	--dnsres=true --errcount=69 --onlyproxy=false --bots 4 --checkproxy=true \
-	https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
-	https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
+	docker run --rm -it --name=antiprop lovefromukraine/antiprop --refresh=20 \
+	--dnsres=true --errcount=5 --onlyproxy=false --bots 10 --checkproxy=true \
+	--sites https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/targets.json \
+	--proxy https://raw.githubusercontent.com/meddion/propaganda-ddos/sources/proxy.json
 
 docker_push:
 	docker build -t antiprop .

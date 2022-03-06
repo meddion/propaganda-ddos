@@ -71,12 +71,6 @@ func NewBot(id int, getProxy func() *Proxy) (*Bot, error) {
 }
 
 func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotResp) {
-	select {
-	case <-ctx.Done():
-		return
-	default:
-	}
-
 	cont := make(chan bool, 1)
 	errCount := 0
 	for {
@@ -97,8 +91,6 @@ func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotResp) {
 					if resp != nil {
 						err = fmt.Errorf("%v (%d %s)", err, resp.StatusCode, http.StatusText(resp.StatusCode))
 					}
-					// else if !errors.Is(err, context.Canceled) {
-					// }
 				default:
 					if resp.StatusCode != http.StatusOK {
 						errCount++
@@ -121,7 +113,6 @@ func (b *Bot) Start(ctx context.Context, target string, msgs chan<- BotResp) {
 					}
 				}
 			}
-
 		}
 		runtime.Gosched()
 	}

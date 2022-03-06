@@ -35,7 +35,7 @@ func NewBotScheduler(target Target, proxies []Proxy, botsNum, maxErrCount int, o
 	}
 }
 
-func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error {
+func (b *BotScheduler) Start(rootCtx context.Context) error {
 	withProxy := true
 	getProxy := func() *Proxy {
 		if withProxy && len(b.proxies) > 0 {
@@ -46,7 +46,7 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 	}
 
 	if !b.onlyProxy {
-		ctxTimeout, cancel := context.WithTimeout(botsCtx, time.Second*5)
+		ctxTimeout, cancel := context.WithTimeout(rootCtx, time.Second*5)
 		defer cancel()
 
 		req, err := newReq(ctxTimeout, "GET", b.target.URL)
@@ -68,17 +68,19 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 		}
 	}
 
-	botsCtx, termBots := context.WithCancel(botsCtx)
 	msgs := make(chan BotResp, b.botsNum)
+	var wg sync.WaitGroup
+	wg.Add(b.botsNum)
 
 	// TODO: handle errors && and  statisics
 	for i := 0; i < b.botsNum; i++ {
 		select {
-		case <-botsCtx.Done():
-			termBots() // To free resources
+		case <-rootCtx.Done():
 			return nil
 		default:
 			go func() {
+				defer wg.Done()
+
 				id := rand.Int() // TODO: possible collisions
 				log := log.WithField("bot", id)
 
@@ -88,25 +90,24 @@ func (b *BotScheduler) Start(botsCtx context.Context, wg *sync.WaitGroup) error 
 					return
 				}
 
-				wg.Add(1)
 				atomic.AddInt64(&b.activeBots, 1)
-				c.Start(botsCtx, b.target.URL, msgs)
-				wg.Done()
+				c.Start(rootCtx, b.target.URL, msgs)
 			}()
 		}
 	}
 
-	wg.Add(1)
+	botCtx, cancel := context.WithCancel(rootCtx)
 	go func() {
-		defer wg.Done()
-		time.Sleep(time.Millisecond * 500)
-		b.botResponseHandler(botsCtx, termBots, msgs)
+		wg.Wait()
+		cancel()
 	}()
+
+	b.botResponseHandler(botCtx, msgs)
 
 	return nil
 }
 
-func (b *BotScheduler) botResponseHandler(ctx context.Context, termBots func(), msgs <-chan BotResp) {
+func (b *BotScheduler) botResponseHandler(botCtx context.Context, msgs <-chan BotResp) {
 	logActiveBots := func() {
 		log.Infof("Ціль '%s'; активних ботів: %d/%d",
 			b.target.URL,
@@ -118,13 +119,13 @@ func (b *BotScheduler) botResponseHandler(ctx context.Context, termBots func(), 
 	totalRequstSent, successRequestSent := 0, 0
 	for {
 		select {
-		case <-ctx.Done():
+		case <-botCtx.Done():
 			return
 		default:
 		}
 
 		select {
-		case <-ctx.Done():
+		case <-botCtx.Done():
 			return
 		case msg := <-msgs:
 			totalRequstSent++
@@ -135,27 +136,25 @@ func (b *BotScheduler) botResponseHandler(ctx context.Context, termBots func(), 
 				successRequestSent++
 			}
 
-			if msg.ErrCount > b.maxErrCount {
-				msg.Continue <- false
+			if totalRequstSent%100 == 0 {
+				logActiveBots()
+				log.Infof("Успішних запитів: %d/%d\n", successRequestSent, totalRequstSent)
+			}
 
+			keepBot := true
+			if msg.ErrCount > b.maxErrCount {
+				keepBot = false
 				atomic.AddInt64(&b.activeBots, -1)
 				log.WithField("id", msg.ID).Warnf(
 					"Бот закінчив роботу; к-сть помилок для одного бота перевищила ліміт %d невдалих запитів",
 					b.maxErrCount,
 				)
 				logActiveBots()
-
-				if atomic.LoadInt64(&b.activeBots) == 0 {
-					log.Infof("Припиняю надсилати запити до %s", b.target.URL)
-					return
-				}
 			}
 
-			msg.Continue <- true
-
-			if totalRequstSent%100 == 0 {
-				logActiveBots()
-				log.Infof("Успішних запитів: %d/%d\n", successRequestSent, totalRequstSent)
+			select {
+			case <-botCtx.Done():
+			case msg.Continue <- keepBot:
 			}
 		}
 	}

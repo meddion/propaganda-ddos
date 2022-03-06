@@ -241,12 +241,18 @@ func run(cmd *cobra.Command, args []string) {
 		}()
 
 		var wg sync.WaitGroup
+		wg.Add(len(validTargets))
 		for _, target := range validTargets {
-			botSched := flood.NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
-			if err := botSched.Start(epochCtx, &wg); err != nil {
-				log.Errorf("Не вдалося запустити ботів: %v\n", err)
-				continue
-			}
+			go func(target flood.Target) {
+				defer wg.Done()
+
+				botSched := flood.NewBotScheduler(target, proxies, botsNum, maxErrCount, onlyProxy)
+				if err := botSched.Start(epochCtx); err != nil {
+					log.Errorf("Не вдалося запустити ботів: %v\n", err)
+				} else {
+					log.Infof("Припиняю надсилати запити до %s", target.URL)
+				}
+			}(target)
 		}
 
 		wg.Wait()
