@@ -1,9 +1,13 @@
 [ 
-  "https://online.vtb.ru",
-  "https://online.sberbank.ru/CSAFront/index.do#/",
-  "https://online.gpb.ru/login",
-  "https://alfabank.ru/everyday/online/",
-  "https://online.rshb.ru",
-  "https://online.sovcombank.ru/",
-  "https://online.mkb.ru/"
+  "https://iecp.ru/ep/uc-list", 
+  "https://nucrf.ru/", 
+  "https://www.roseltorg.ru/",
+  "https://nwudc.ru/", 
+  "213.182.169.24:443", 
+  "213.182.169.36:443", 
+  "87.236.19.168:443",
+  "https://www.center-inform.ru/",
+  "185.178.208.74:443", 
+  "185.178.208.163:443", 
+  "185.46.11.253:443"
 ]
